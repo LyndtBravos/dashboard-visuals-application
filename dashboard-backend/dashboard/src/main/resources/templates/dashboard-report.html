@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 5px 0 0;
+            opacity: 0.9;
+        }
+        .summary {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background-color: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .summary-card {
+            text-align: center;
+        }
+        .summary-card .count {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .summary-card .label {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .status-green { color: #10b981; }
+        .status-yellow { color: #f59e0b; }
+        .status-red { color: #ef4444; }
+        .content {
+            padding: 20px;
+        }
+        .message-box {
+            background-color: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+        .visuals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .visuals-table th,
+        .visuals-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .visuals-table th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-badge.green {
+            background-color: #d1fae5;
+            color: #10b981;
+        }
+        .status-badge.yellow {
+            background-color: #fed7aa;
+            color: #f59e0b;
+        }
+        .status-badge.red {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+        .footer {
+            background-color: #f1f5f9;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .service-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            background-color: #e2e8f0;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📊 Dashboard Report</h1>
+        <p th:text="${#temporals.format(reportDate, 'yyyy-MM-dd HH:mm:ss')}"></p>
+    </div>
+
+    <div class="summary">
+        <div class="summary-card">
+            <div class="count" th:text="${totalVisuals}">0</div>
+            <div class="label">Total Visuals</div>
+        </div>
+        <div class="summary-card">
+            <div class="count status-green" th:text="${greenCount}">0</div>
+            <div class="label">Healthy</div>
+        </div>
+        <div class="summary-card">
+            <div class="count status-yellow" th:text="${yellowCount}">0</div>
+            <div class="label">Warning</div>
+        </div>
+        <div class="summary-card">
+            <div class="count status-red" th:text="${redCount}">0</div>
+            <div class="label">Critical</div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="message-box" th:if="${message}">
+            <strong>📝 Message:</strong><br/>
+            <span th:text="${message}"></span>
+        </div>
+
+        <p><strong>Filter:</strong> <span th:text="${statusFilters}"></span> |
+            <strong>Service:</strong> <span th:text="${serviceType}"></span></p>
+
+        <table class="visuals-table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Value</th>
+                <th>Last Checked</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="visual : ${visuals}">
+                <td th:text="${visual.name}"></td>
+                <td th:text="${visual.graphType}"></td>
+                <td><span class="service-badge" th:text="${visual.serviceType}"></span></td>
+                <td>
+                            <span class="status-badge" th:classappend="${visual.currentStatus?.name()}"
+                                  th:text="${visual.currentStatus?.name()?.toUpperCase()}"></span>
+                </td>
+                <td th:text="${visual.currentValue}"></td>
+                <td th:text="${#temporals.format(visual.lastChecked, 'yyyy-MM-dd HH:mm')}"></td>
+            </tr>
+            <tr th:if="${visuals.empty}">
+                <td colspan="6" style="text-align: center;">No visuals found matching the selected filters</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>This is an automated report from Dashboard Visuals Application.</p>
+        <p>Generated on <span th:text="${#temporals.format(reportDate, 'yyyy-MM-dd HH:mm:ss')}"></span></p>
+    </div>
+</div>
+</body>
+</html>
