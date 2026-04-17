@@ -1,0 +1,137 @@
+<div class="alerts-container">
+  <div class="page-header">
+    <h1>Alerts</h1>
+    <p>Monitor and manage active system alerts</p>
+  </div>
+  
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value">{{ alertCounts.total }}</div>
+      <div class="stat-label">Total Alerts</div>
+    </div>
+    <div class="stat-card critical">
+      <div class="stat-value">{{ alertCounts.critical }}</div>
+      <div class="stat-label">Critical</div>
+    </div>
+    <div class="stat-card high">
+      <div class="stat-value">{{ alertCounts.high }}</div>
+      <div class="stat-label">High</div>
+    </div>
+    <div class="stat-card medium">
+      <div class="stat-value">{{ alertCounts.medium }}</div>
+      <div class="stat-label">Medium</div>
+    </div>
+    <div class="stat-card low">
+      <div class="stat-value">{{ alertCounts.low }}</div>
+      <div class="stat-label">Low</div>
+    </div>
+  </div>
+  
+  <!-- Controls -->
+  <div class="controls-bar">
+    <div class="controls-left">
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="showAcknowledged" (change)="toggleShowAcknowledged()">
+        Show acknowledged alerts
+      </label>
+    </div>
+    
+    <div class="controls-right">
+      <div class="auto-refresh">
+        <label>Auto-refresh:</label>
+        <select [(ngModel)]="selectedRefreshInterval" (change)="onAutoRefreshChange()">
+          <option *ngFor="let option of refreshOptions" [value]="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+      <button class="btn-secondary" (click)="onRefresh()">
+        🔄 Refresh
+      </button>
+    </div>
+  </div>
+  
+  <!-- Alerts Table -->
+  <div class="table-wrapper">
+    <table class="alerts-table">
+      <thead>
+        <tr>
+          <th (click)="onSort('severity')">Severity ↕️</th>
+          <th (click)="onSort('monitorType')">Type ↕️</th>
+          <th (click)="onSort('name')">Monitor Name ↕️</th>
+          <th>Failure Reason</th>
+          <th (click)="onSort('occurrenceCount')">Occurrences ↕️</th>
+          <th (click)="onSort('startedAt')">Started At ↕️</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let alert of getPaginatedAlerts()">
+          <td>
+            <span class="severity-badge" [ngClass]="getSeverityClass(alert.severity)">
+              {{ getSeverityIcon(alert.severity) }} {{ alert.severity | uppercase }}
+            </span>
+          </td>
+          <td>
+            <span class="monitor-type">
+              {{ getMonitorTypeIcon(alert.monitorType) }} {{ alert.monitorType | uppercase }}
+            </span>
+          </td>
+          <td class="monitor-name">{{ alert.name }}</td>
+          <td class="failure-reason">{{ alert.failureReason }}</td>
+          <td class="occurrence-count">{{ alert.occurrenceCount }}</td>
+          <td>{{ alert.startedAt | date:'MMM d, HH:mm:ss' }}</td>
+          <td class="actions-cell">
+            <button class="action-btn view" (click)="viewAlertDetail(alert)" title="View Details">
+              👁️
+            </button>
+            <button class="action-btn acknowledge" (click)="onAcknowledge(alert)" *ngIf="!alert.acknowledged">
+              ✓ Acknowledge
+            </button>
+            <button class="action-btn resolve" (click)="onResolve(alert)" *ngIf="alert.acknowledged && !alert.resolvedAt">
+              ✓ Resolve
+            </button>
+            <span class="resolved-badge" *ngIf="alert.resolvedAt">Resolved</span>
+          </td>
+        </tr>
+        <tr *ngIf="getPaginatedAlerts().length === 0">
+          <td colspan="7" class="no-data">
+            🎉 No alerts found. All systems operational!
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Pagination -->
+  <div class="pagination-footer" *ngIf="filteredAlerts.length > 0">
+    <div class="pagination-info">
+      Showing {{ ((pagination.page - 1) * pagination.pageSize) + 1 }} to 
+      {{ Math.min(pagination.page * pagination.pageSize, filteredAlerts.length) }} of {{ filteredAlerts.length }} alerts
+    </div>
+    
+    <div class="pagination-controls">
+      <select [(ngModel)]="pagination.pageSize" (change)="onPageSizeChange(pagination.pageSize)">
+        <option *ngFor="let size of [10, 25, 50, 100]" [value]="size">{{ size }} per page</option>
+      </select>
+      
+      <div class="pagination-buttons">
+        <button (click)="onPageChange(pagination.page - 1)" [disabled]="pagination.page === 1">«</button>
+        <button *ngFor="let page of getPages()" 
+                [class.active]="page === pagination.page"
+                [disabled]="page === -1"
+                (click)="page !== -1 && onPageChange(page)">
+          {{ page === -1 ? '...' : page }}
+        </button>
+        <button (click)="onPageChange(pagination.page + 1)" [disabled]="pagination.page === getTotalPages()">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-alert-detail-modal
+  *ngIf="showDetailModal"
+  [alert]="selectedAlertDetail"
+  (close)="showDetailModal = false; selectedAlertDetail = null">
+</app-alert-detail-modal>

@@ -1,0 +1,17 @@
+<div class="sidebar" [class.collapsed]="isCollapsed">
+  <div class="sidebar-header">
+    <button class="close-btn" (click)="onClose()" *ngIf="!isCollapsed">×</button>
+    <div class="logo-mini" *ngIf="isCollapsed">DVA</div>
+  </div>
+  
+  <nav class="sidebar-nav">
+    <a *ngFor="let item of menuItems"
+       [routerLink]="item.path"
+       routerLinkActive="active"
+       class="nav-item"
+       (click)="isCollapsed && onClose()">
+      <span class="nav-icon">{{ item.icon }}</span>
+      <span class="nav-label" *ngIf="!isCollapsed">{{ item.label }}</span>
+    </a>
+  </nav>
+</div>

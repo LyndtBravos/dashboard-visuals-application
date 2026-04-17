@@ -1,0 +1,16 @@
+<header class="app-header">
+  <button class="menu-toggle" (click)="onToggleSidebar()">
+    ☰
+  </button>
+  
+  <div class="logo">
+    <h1>Dashboard Visuals Application</h1>
+  </div>
+  
+  <div class="user-menu">
+    <span class="user-name">Welcome, {{ getUserName() }}</span>
+    <button class="logout-btn" (click)="logout()">
+      Logout
+    </button>
+  </div>
+</header>

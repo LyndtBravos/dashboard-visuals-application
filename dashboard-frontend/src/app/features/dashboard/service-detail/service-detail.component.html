@@ -1,0 +1,355 @@
+<div class="service-detail-container">
+  
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>{{ serviceType ? serviceType + ' Service Dashboard' : 'Service Dashboard' }}</h1>
+      <p>{{ serviceType ? 'Monitor ' + serviceType + ' service visuals and metrics' : 'Monitor the health of all your services at a glance' }}</p>
+    </div>
+    
+    <div class="header-actions">
+      <!-- Polling Controls -->
+      <div class="polling-controls">
+        <button class="polling-toggle" 
+                [class.active]="pollingConfig.enabled" 
+                (click)="onPollingToggle()"
+                [disabled]="isLoading">
+          🔄 {{ pollingConfig.enabled ? 'Auto-refresh ON' : 'Auto-refresh OFF' }}
+        </button>
+
+        <select class="interval-select" 
+                [(ngModel)]="selectedInterval" 
+                (change)="onIntervalChange()"
+                [disabled]="!pollingConfig.enabled">
+          <option *ngFor="let interval of availableIntervals" [value]="interval.value">
+            {{ interval.label }}
+          </option>
+        </select>
+        
+        <div class="polling-status" *ngIf="pollingConfig.enabled && pollingConfig.lastRun">
+          <span class="status-dot"></span>
+          Last: {{ pollingConfig.lastRun | date:'HH:mm:ss' }}
+        </div>
+      </div>
+      
+      <button class="refresh-btn" (click)="manualRefresh()" [disabled]="isLoading">
+        🔄 {{ isLoading ? 'Loading...' : 'Refresh' }}
+      </button>
+      
+      <button class="btn-share" (click)="openShareModal()">
+        📧 Share Report
+      </button>
+      
+      <ng-container *ngIf="serviceType">
+        <button class="btn-secondary" (click)="openVisualsTable()">📋 View All Visuals</button>
+        <button class="btn-primary" (click)="showVisualBuilder = true">+ Add Visual</button>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- Last Updated -->
+  <div class="last-updated" *ngIf="lastUpdated">
+    Last updated: {{ lastUpdated | date:'medium' }}
+  </div>
+
+  <!-- ========== OVERVIEW MODE - SHOW SERVICE CARDS ========== -->
+  <div *ngIf="!serviceType" class="services-grid">
+    <div *ngFor="let service of services" 
+         class="service-card" 
+         [routerLink]="['/dashboard', service.serviceType]"
+         [ngClass]="'status-' + service.overallStatus">
+      <div class="service-icon" [ngClass]="getServiceColor(service.serviceType)">
+        {{ getServiceIcon(service.serviceType) }}
+      </div>
+      <div class="service-info">
+        <h2>{{ service.serviceType }}</h2>
+        <div class="service-stats">
+          <div class="stat-badge green" *ngIf="service.statusCounts.green > 0">
+            🟢 {{ service.statusCounts.green }}
+          </div>
+          <div class="stat-badge yellow" *ngIf="service.statusCounts.yellow > 0">
+            🟡 {{ service.statusCounts.yellow }}
+          </div>
+          <div class="stat-badge red" *ngIf="service.statusCounts.red > 0">
+            🔴 {{ service.statusCounts.red }}
+          </div>
+        </div>
+        <div class="total-visuals">Total: {{ service.totalVisuals }} visuals</div>
+      </div>
+      <div class="service-status">
+        <div class="status-indicator" [ngClass]="'status-' + service.overallStatus"></div>
+        <span class="status-text">
+          {{ service.overallStatus === 'red' ? 'Critical' : (service.overallStatus === 'yellow' ? 'Warning' : 'Healthy') }}
+        </span>
+      </div>
+    </div>
+    
+    <div *ngIf="services.length === 0 && !isLoading" class="no-data">
+      No services available
+    </div>
+  </div>
+
+  <!-- ========== DETAIL MODE - VISUALS ========== -->
+  <div *ngIf="serviceType">
+    
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card total">
+        <div class="stat-value">{{ totalVisuals }}</div>
+        <div class="stat-label">Total Visuals</div>
+      </div>
+      <div class="stat-card healthy">
+        <div class="stat-value">{{ healthyCount }}</div>
+        <div class="stat-label">Healthy</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-value">{{ warningCount }}</div>
+        <div class="stat-label">Warning</div>
+      </div>
+      <div class="stat-card critical">
+        <div class="stat-value">{{ criticalCount }}</div>
+        <div class="stat-label">Critical</div>
+      </div>
+    </div>
+    
+    <!-- Search Bar -->
+    <div class="search-bar" *ngIf="visuals.length > 0">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          [(ngModel)]="searchTerm" 
+          (input)="filterVisuals()"
+          placeholder="Search visuals by name..."
+          class="search-input">
+        <button *ngIf="searchTerm" class="clear-search" (click)="searchTerm = ''; filterVisuals()">×</button>
+      </div>
+      <div class="search-stats" *ngIf="filteredVisuals.length !== visuals.length">
+        Showing {{ filteredVisuals.length }} of {{ visuals.length }}
+      </div>
+    </div>
+    
+    <!-- ===== TEXT VISUALS SECTION (with flow diagram when no search) ===== -->
+    <div *ngIf="getTextVisuals().length > 0">
+      <!-- Section Title -->
+      <div class="section-header">
+        <hr class="section-line">
+        <h3>📋 Process Flow</h3>
+        <hr class="section-line">
+      </div>
+      
+      <!-- Flow Diagram (when no search) -->
+      <div *ngIf="!searchTerm && getTextVisuals().length > 0" class="flow-wrapper">
+        <app-flow-diagram
+          #flowDiagram
+          [visuals]="getTextVisuals()"
+          [serviceType]="serviceType"
+          [searchActive]="!!searchTerm"
+          (editVisual)="editVisual($event)"
+          (deleteVisual)="deleteVisual($event)"
+          (recheckVisual)="recheckVisual($event)">
+        </app-flow-diagram>
+      </div>
+      
+      <!-- Text Visuals Grid (when search is active) -->
+      <div *ngIf="searchTerm" class="visuals-grid">
+        <app-visual-card 
+          *ngFor="let visual of getPaginatedTextVisuals()"
+          [visual]="visual"
+          (edit)="editVisual($event)"
+          (delete)="deleteVisual($event.id)"
+          (recheck)="recheckVisual($event)">
+        </app-visual-card>
+        <div *ngIf="getPaginatedTextVisuals().length === 0" class="no-data">
+          <span class="no-data-icon">🔍</span>
+          <p>No text visuals found matching "{{ searchTerm }}"</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ===== CHARTS SECTION (Analytics & Trends) ===== -->
+    <div *ngIf="getChartVisuals().length > 0">
+      <!-- Section Title -->
+      <div class="section-header">
+        <hr class="section-line">
+        <h3>📊 Analytics & Trends</h3>
+        <hr class="section-line">
+      </div>
+      
+      <!-- Charts Grid -->
+      <div class="visuals-grid">
+        <app-visual-card 
+          *ngFor="let visual of getPaginatedChartVisuals()"
+          [visual]="visual"
+          (edit)="editVisual($event)"
+          (delete)="deleteVisual($event.id)"
+          (recheck)="recheckVisual($event)">
+        </app-visual-card>
+        <div *ngIf="getPaginatedChartVisuals().length === 0" class="no-data">
+          <span class="no-data-icon">🔍</span>
+          <p>No charts found matching "{{ searchTerm }}"</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- No Results Message -->
+    <div *ngIf="filteredVisuals.length === 0 && !isLoading" class="no-data">
+      <span class="no-data-icon">🔍</span>
+      <p>No visuals found matching "{{ searchTerm }}"</p>
+      <button class="btn-secondary" (click)="searchTerm = ''; filterVisuals()">Clear Search</button>
+    </div>
+    
+    <!-- Back Button -->
+    <div class="back-button">
+      <button class="btn-secondary" routerLink="/dashboard">← Back to Services</button>
+    </div>
+  </div>
+
+  <!-- Share Modal -->
+  <div *ngIf="showShareModal" class="modal-overlay" (click)="showShareModal = false">
+    <div class="modal-container share-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📧 Share Dashboard Report</h3>
+        <button class="close-btn" (click)="showShareModal = false">×</button>
+      </div>
+      <div class="modal-body">
+        <form (ngSubmit)="sendEmailReport()">
+          <div class="form-group">
+            <label for="recipientEmail">Recipient Email <span class="required-star">*</span></label>
+            <input 
+              type="email" 
+              id="recipientEmail" 
+              name="recipientEmail"
+              [(ngModel)]="emailReport.to"
+              required
+              placeholder="recipient@example.com"
+              class="form-control">
+          </div>
+          
+          <div class="form-group">
+            <label for="emailSubject">Subject</label>
+            <input 
+              type="text" 
+              id="emailSubject" 
+              name="emailSubject"
+              [(ngModel)]="emailReport.subject"
+              placeholder="Dashboard Report"
+              class="form-control">
+          </div>
+          
+          <div class="form-group">
+            <label for="emailMessage">Message (Optional)</label>
+            <textarea 
+              id="emailMessage" 
+              name="emailMessage"
+              [(ngModel)]="emailReport.message"
+              rows="3"
+              placeholder="Add a personal message..."
+              class="form-control"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Status Filters</label>
+            <div class="checkbox-group-horizontal">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="emailReport.includeGreen" name="includeGreen">
+                <span class="status-green">🟢 Green (Healthy)</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="emailReport.includeYellow" name="includeYellow">
+                <span class="status-yellow">🟡 Yellow (Warning)</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="emailReport.includeRed" name="includeRed">
+                <span class="status-red">🔴 Red (Critical)</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group" *ngIf="serviceType">
+            <label for="serviceFilter">Service Filter</label>
+            <select id="serviceFilter" [(ngModel)]="emailReport.serviceType" name="serviceType" class="form-control">
+              <option [value]="serviceType">{{ serviceType }}</option>
+              <option value="">All Services</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="emailReport.includePdf" name="includePdf">
+              <span>📎 Include PDF Attachment (Coming Soon)</span>
+            </label>
+          </div>
+          
+          <div class="error-msg" *ngIf="emailError">
+            {{ emailError }}
+          </div>
+          
+          <div class="modal-footer-buttons">
+            <button type="button" class="btn-cancel" (click)="showShareModal = false">Cancel</button>
+            <button type="submit" class="btn-send" [disabled]="isSendingEmail || !emailReport.to">
+              {{ isSendingEmail ? 'Sending...' : 'Send Report' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visuals Table Modal -->
+  <div *ngIf="showVisualsModal" class="modal-overlay" (click)="showVisualsModal = false">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>All Visuals - {{ serviceType }}</h3>
+        <button class="close-btn" (click)="showVisualsModal = false">×</button>
+      </div>
+      <div class="modal-body">
+        <table class="visuals-table">
+          <thead>
+            <tr>
+              <th *ngFor="let col of visualColumns" (click)="col.sortable && onModalSort(col.key)">
+                {{ col.label }} <span *ngIf="col.sortable">{{ modalSortKey === col.key ? (modalSortDirection === 'asc' ? '↑' : '↓') : '↕️' }}</span>
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let visual of getPaginatedVisuals()">
+              <td>{{ visual.name }}</td>
+              <td>{{ visual.graphType }}</td>
+              <td [ngClass]="'status-' + visual.currentStatus">{{ visual.currentValue }}</td>
+              <td [ngClass]="'status-' + visual.currentStatus">{{ visual.currentStatus | uppercase }}</td>
+              <td>{{ visual.lastChecked | date:'medium' }}</td>
+              <td class="actions">
+                <button class="action-btn recheck" (click)="recheckVisual(visual)" title="Recheck now">🔄</button>
+                <button class="edit-btn" (click)="editVisual(visual)">✏️</button>
+                <button class="delete-btn" (click)="deleteVisual(visual.id || 0)">🗑️</button>
+              </td>
+            </tr>
+            <tr *ngIf="filteredVisuals.length === 0">
+              <td [attr.colspan]="visualColumns.length + 1" class="no-data">No visuals found</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="pagination" *ngIf="filteredVisuals.length > 0">
+          <button (click)="onPageChange(visualPagination.page - 1)" [disabled]="visualPagination.page === 1">«</button>
+          <span>Page {{ visualPagination.page }} of {{ getTotalPages() }}</span>
+          <button (click)="onPageChange(visualPagination.page + 1)" [disabled]="visualPagination.page === getTotalPages()">»</button>
+          <select [(ngModel)]="visualPagination.pageSize" (change)="onPageSizeChange(visualPagination.pageSize)">
+            <option *ngFor="let size of [10, 25, 50, 100]" [value]="size">{{ size }} per page</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visual Builder Modal -->
+  <app-visual-builder
+    *ngIf="showVisualBuilder"
+    [serviceType]="serviceType"
+    [visual]="selectedVisual"
+    (close)="onVisualBuilderClosed($event)">
+  </app-visual-builder>
+
+</div>

@@ -1,0 +1,143 @@
+<!-- features/monitors/alert-detail-modal/alert-detail-modal.component.html -->
+<div *ngIf="alert" class="modal-overlay" (click)="close.emit()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header" [ngClass]="getSeverityClass()">
+      <div class="header-left">
+        <span class="monitor-icon">{{ getMonitorTypeIcon() }}</span>
+        <h2>{{ alert.name }}</h2>
+      </div>
+      <button class="close-btn" (click)="close.emit()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Alert Summary -->
+      <div class="info-section">
+        <h3>⚠️ Alert Summary</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Severity:</span>
+            <span class="info-value" [ngClass]="getSeverityClass()">{{ alert.severity | uppercase }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Monitor Type:</span>
+            <span class="info-value">{{ getMonitorTypeLabel() }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Service:</span>
+            <span class="info-value">{{ alert.serviceType || 'N/A' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Occurrences:</span>
+            <span class="info-value">{{ alert.occurrenceCount }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Started:</span>
+            <span class="info-value">{{ formatDate(alert.startedAt) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Last Occurrence:</span>
+            <span class="info-value">{{ formatDate(alert.lastOccurrence) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Failure Reason:</span>
+            <span class="info-value failure-reason">{{ alert.failureReason }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Monitor Details (Site/API) -->
+      <div class="info-section" *ngIf="alert.url">
+        <h3>🔗 Monitor Details</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">URL:</span>
+            <span class="info-value url-value">{{ alert.url }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.method">
+            <span class="info-label">Method:</span>
+            <span class="info-value">{{ alert.method }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Expected Status:</span>
+            <span class="info-value">{{ alert.expectedStatusCode || 200 }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Monitor Details (Server) -->
+      <div class="info-section" *ngIf="alert.host">
+        <h3>🖥️ Server Details</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Host:</span>
+            <span class="info-value">{{ alert.host }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.port">
+            <span class="info-label">Port:</span>
+            <span class="info-value">{{ alert.port }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.protocol">
+            <span class="info-label">Protocol:</span>
+            <span class="info-value">{{ alert.protocol | uppercase }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Monitor Details (Dashboard Visual) -->
+      <div class="info-section" *ngIf="alert.queryText">
+        <h3>📊 Dashboard Visual Details</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Graph Type:</span>
+            <span class="info-value">{{ alert.graphType }}</span>
+          </div>
+          <div class="info-item full-width">
+            <span class="info-label">Query:</span>
+            <pre class="query-text">{{ alert.queryText }}</pre>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Status Information -->
+      <div class="info-section">
+        <h3>📈 Status Information</h3>
+        <div class="info-grid">
+          <div class="info-item" *ngIf="alert.currentFailureCount !== undefined">
+            <span class="info-label">Failure Count:</span>
+            <span class="info-value" [class.high-failure]="alert.currentFailureCount >= (alert.retryCount || 3)">
+              {{ alert.currentFailureCount }} / {{ alert.retryCount || 3 }}
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Acknowledged:</span>
+            <span class="info-value">{{ alert.acknowledged ? 'Yes' : 'No' }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.acknowledgedBy">
+            <span class="info-label">Acknowledged By:</span>
+            <span class="info-value">{{ alert.acknowledgedBy }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.acknowledgedAt">
+            <span class="info-label">Acknowledged At:</span>
+            <span class="info-value">{{ formatDate(alert.acknowledgedAt) }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.resolvedAt">
+            <span class="info-label">Resolved At:</span>
+            <span class="info-value">{{ formatDate(alert.resolvedAt) }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.lastCheckMessage">
+            <span class="info-label">Last Check Message:</span>
+            <span class="info-value">{{ alert.lastCheckMessage }}</span>
+          </div>
+          <div class="info-item" *ngIf="alert.lastCheckTime">
+            <span class="info-label">Last Check Time:</span>
+            <span class="info-value">{{ formatDate(alert.lastCheckTime) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="close.emit()">Close</button>
+    </div>
+  </div>
+</div>

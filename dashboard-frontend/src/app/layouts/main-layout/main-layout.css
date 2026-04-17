@@ -1,0 +1,15 @@
+.main-layout {
+  min-height: 100vh;
+}
+
+.main-content {
+  margin-left: 250px;
+  margin-top: 64px;
+  padding: 24px;
+  transition: margin-left 0.3s ease;
+  min-height: calc(100vh - 64px);
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: 70px;
+}

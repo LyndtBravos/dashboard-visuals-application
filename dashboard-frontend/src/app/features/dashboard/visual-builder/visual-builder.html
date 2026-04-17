@@ -1,0 +1,270 @@
+<div class="modal-overlay" (click)="onCancel()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ visual ? 'Edit Visual' : 'Create New Visual' }}</h2>
+      <button class="close-btn" (click)="onCancel()">×</button>
+    </div>
+    
+    <form [formGroup]="visualForm" (ngSubmit)="onSubmit()" class="visual-form">
+      <div class="modal-body">
+        <!-- Basic Information -->
+        <div class="form-section">
+          <h3>Basic Information</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Visual Name <span class="required">*</span></label>
+              <input type="text" id="name" formControlName="name" placeholder="e.g., CPU Usage, Encoder Status">
+              <div class="error-message" *ngIf="visualForm.get('name')?.touched && visualForm.get('name')?.invalid">
+                <span *ngIf="visualForm.get('name')?.errors?.['required']">Name is required</span>
+                <span *ngIf="visualForm.get('name')?.errors?.['minlength']">Minimum 3 characters</span>
+                <span *ngIf="visualForm.get('name')?.errors?.['maxlength']">Maximum 200 characters</span>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="serviceType">Service Type <span class="required">*</span></label>
+              <select id="serviceType" formControlName="serviceType">
+                <option value="" disabled>Select service type</option>
+                <option *ngFor="let service of services" [value]="service.value">
+                  {{ service.icon }} {{ service.label }}
+                </option>
+              </select>
+              <small *ngIf="isServiceTypeDisabled()" class="info-text">
+                ⚡ Service type is locked because you're {{ visual ? 'editing an existing' : 'creating from ' + serviceType }} visual
+              </small>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" formControlName="description" rows="2" placeholder="Optional description of this visual"></textarea>
+          </div>
+        </div>
+        
+        <!-- Visual Configuration -->
+        <div class="form-section">
+          <h3>Visual Configuration</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="graphType">Graph Type <span class="required">*</span></label>
+              <select id="graphType" formControlName="graphType" (change)="onGraphTypeChange()">
+                <option *ngFor="let type of graphTypes" [value]="type.value">
+                  {{ type.icon }} {{ type.label }} - {{ type.description }}
+                </option>
+              </select>
+            </div>
+            
+            <div class="form-group" *ngIf="shouldShowWidth()">
+              <label for="width">Width</label>
+              <select id="width" formControlName="width">
+                <option *ngFor="let width of widths" [value]="width.value">
+                  {{ width.label }} ({{ width.width }})
+                </option>
+              </select>
+              <small>Controls chart size. Text visuals have fixed width.</small>
+            </div>
+
+            <div class="form-group" *ngIf="!shouldShowWidth()">
+              <label for="flowOrder">Flow Order</label>
+              <input type="number" id="flowOrder" min="1" max="200" formControlName="flowOrder" class="form-control" required>
+              <small>Controls where this visual appears in the process flow (1 = first, 2 = second, etc.). Leave empty to place at the end.</small>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Query Configuration -->
+        <div class="form-section">
+          <h3>Query Configuration</h3>
+          
+          <div class="form-group">
+            <label for="queryText">SQL Query <span class="required">*</span></label>
+            <textarea id="queryText" formControlName="queryText" rows="4" 
+                      placeholder="SELECT value FROM table WHERE condition"></textarea>
+            <div class="error-message" *ngIf="visualForm.get('queryText')?.touched && visualForm.get('queryText')?.invalid">
+              <span *ngIf="visualForm.get('queryText')?.errors?.['required']">Query is required</span>
+              <span *ngIf="visualForm.get('queryText')?.errors?.['minlength']">Minimum 5 characters</span>
+            </div>
+          </div>
+          
+          <button type="button" class="btn-test" (click)="testQuery()" [disabled]="isTesting || !visualForm.get('queryText')?.value">
+            🔍 {{ isTesting ? 'Testing...' : 'Test Query' }}
+          </button>
+          
+          <div *ngIf="shouldShowChartConfig() && testDataSet && testDataSet.data.length > 0" class="form-section chart-config-section">
+            <h3>📊 Chart Configuration</h3>
+            
+            <!-- Available Columns Info -->
+            <div class="info-box">
+              <strong>Available Columns:</strong> {{ availableColumns.join(', ') }}
+            </div>
+            
+            <!-- X-Axis Selection -->
+            <div class="form-group">
+              <label for="xAxisColumn">X-Axis (Labels/Categories)</label>
+              <select id="xAxisColumn" formControlName="xAxisColumn" class="form-control">
+                <option [value]="null" disabled>Select column for X-axis</option>
+                <option *ngFor="let col of availableColumns" [value]="col">{{ col }}</option>
+              </select>
+              <small>This column will be used as labels on the horizontal axis</small>
+            </div>
+            
+            <!-- Y-Axis Series Selection -->
+            <div class="form-group">
+              <label>Y-Axis Values (Data Series)</label>
+              <div class="series-selector">
+                <select [(ngModel)]="selectedYAxisColumn" [ngModelOptions]="{standalone: true}" class="form-control">
+                  <option [ngValue]="null" disabled>Select column to add</option>
+                  <option *ngFor="let col of availableColumns" [value]="col">{{ col }}</option>
+                </select>
+                <button type="button" class="btn-add" (click)="addYAxisSeries()" [disabled]="!selectedYAxisColumn">+ Add</button>
+              </div>
+              
+              <!-- Added Series List -->
+              <div *ngIf="yAxisSeries.length > 0" class="series-list">
+                <div *ngFor="let series of yAxisSeries; let i = index" class="series-item">
+                  <span class="series-name">📊 {{ series.column }}</span>
+                  <button type="button" class="btn-remove" (click)="removeYAxisSeries(i)">Remove</button>
+                </div>
+              </div>
+              <small *ngIf="yAxisSeries.length === 0" class="warning-text">
+                ⚠️ Please add at least one Y-axis column to display data
+              </small>
+            </div>
+            
+            <!-- Aggregation Type (Optional) -->
+            <div class="form-group">
+              <label for="aggregationType">Aggregation Type</label>
+              <select id="aggregationType" formControlName="aggregationType" class="form-control">
+                <option *ngFor="let type of aggregationTypes" [value]="type.value">{{ type.label }}</option>
+              </select>
+              <small>How to aggregate data if there are multiple values</small>
+            </div>
+            
+            <!-- Time Interval (Only for time_series) -->
+            <div *ngIf="visualForm.get('graphType')?.value === 'time_series'" class="form-group">
+              <label for="timeInterval">Time Interval</label>
+              <select id="timeInterval" formControlName="timeInterval" class="form-control">
+                <option [ngValue]="null" disabled>Select time interval</option>
+                <option *ngFor="let interval of timeIntervals" [value]="interval.value">{{ interval.label }}</option>
+              </select>
+              <small>Group data by time period (e.g., hour, day, week)</small>
+            </div>
+            
+            <!-- Live Chart Preview -->
+            <div class="preview-section" *ngIf="getPreviewChartData()">
+              <h4>📈 Live Preview</h4>
+              <div class="preview-chart-container">
+                <canvas id="preview-chart"></canvas>
+              </div>
+
+              <div class="preview-dimensions">
+                <small>Current Width: {{ getWidthLabel() }}</small>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="testResult" class="test-result" [ngStyle]="{'border-left-color': getStatusColor(testStatus || '')}">
+            <div class="result-header">
+              <strong>Test Result</strong>
+              <span class="result-status" [ngClass]="'status-' + testStatus">
+                Status: {{ testStatus | uppercase }}
+              </span>
+            </div>
+            <div class="result-value">Value: {{ testResult.value }}</div>
+            <div class="result-thresholds" *ngIf="testResult.warningThreshold || testResult.dangerThreshold">
+              <span *ngIf="testResult.warningThreshold">Warning: ≥ {{ testResult.warningThreshold }}</span>
+              <span *ngIf="testResult.dangerThreshold">Danger: ≥ {{ testResult.dangerThreshold }}</span>
+            </div>
+          </div>
+          
+          <div *ngIf="testErrorMessage" class="test-error">
+            <strong>Error:</strong> {{ testErrorMessage }}
+          </div>
+        </div>
+        
+        <!-- Threshold Configuration -->
+        <div class="form-section">
+          <h3>Thresholds & Alerts</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="thresholdWarning">Warning Threshold</label>
+              <input type="number" id="thresholdWarning" formControlName="thresholdWarning" placeholder="e.g., 70">
+              <small>Values ≥ this will show yellow</small>
+            </div>
+            
+            <div class="form-group">
+              <label for="thresholdDanger">Danger Threshold</label>
+              <input type="number" id="thresholdDanger" formControlName="thresholdDanger" placeholder="e.g., 90">
+              <small>Values ≥ this will show red</small>
+            </div>
+          </div>
+          
+          <div class="error-message" *ngIf="visualForm.errors?.['thresholdsInvalid'] && visualForm.get('thresholdWarning')?.value && visualForm.get('thresholdDanger')?.value">
+            {{ visualForm.errors?.['thresholdsInvalid'] }}
+          </div>
+          
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="alert" (change)="onAlertChange()">
+              <span>Enable Email Alerts</span>
+            </label>
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="isActive">
+              <span>✅ Active (Show on Dashboard)</span>
+            </label>
+            <small>Uncheck to hide this visual without deleting it</small>
+          </div>
+          
+          <div class="form-group" *ngIf="visualForm.get('alert')?.value">
+            <label for="alertEmail">Alert Email <span class="required">*</span></label>
+            <input type="email" id="alertEmail" formControlName="alertEmail" placeholder="alerts@example.com">
+            <div class="error-message" *ngIf="visualForm.get('alertEmail')?.touched && visualForm.get('alertEmail')?.invalid">
+              <span *ngIf="visualForm.get('alertEmail')?.errors?.['required']">Email is required when alerts are enabled</span>
+              <span *ngIf="visualForm.get('alertEmail')?.errors?.['email']">Please enter a valid email address</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Preview Section -->
+        <div class="form-section preview-section">
+          <h3>Preview</h3>
+          <div class="preview-card" [ngStyle]="{'width': widths.find(w => w.value === visualForm.get('width')?.value)?.width}">
+            <div class="preview-header">
+              <strong>{{ visualForm.get('name')?.value || 'Visual Name' }}</strong>
+              <span class="preview-badge">{{ visualForm.get('graphType')?.value || 'text' }}</span>
+            </div>
+            <div class="preview-content">
+              <div *ngIf="visualForm.get('graphType')?.value === 'text' || visualForm.get('graphType')?.value === 'text_minutes' || visualForm.get('graphType')?.value === 'status_indicator'"
+                   class="preview-value" [ngClass]="'status-' + (testStatus || 'green')">
+                {{ testResult?.value || '—' }}
+              </div>
+              <div *ngIf="visualForm.get('graphType')?.value === 'bar' || visualForm.get('graphType')?.value === 'time_series'"
+                   class="preview-chart">
+                📊 Chart Preview
+              </div>
+            </div>
+            <div class="preview-footer" *ngIf="visualForm.get('alert')?.value">
+              🔔 Alerts enabled
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="onCancel()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="isLoading || !canSubmit()">
+          {{ isLoading ? 'Saving...' : (visual ? 'Update Visual' : 'Create Visual') }}
+        </button>
+        <div class="validation-summary" *ngIf="!canSubmit() && !isLoading">
+          {{ '⚠️ ' + getFormValidationMessage() }}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

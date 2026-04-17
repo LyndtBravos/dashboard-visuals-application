@@ -1,0 +1,82 @@
+<div class="data-table-container">
+  <div class="table-header">
+    <div class="search-section">
+      <input 
+        type="text"
+        [(ngModel)]="currentSearchTerm"
+        (keyup.enter)="onSearch()"
+        [placeholder]="searchPlaceholder"
+        class="search-input">
+      <button class="btn-secondary" (click)="onSearch()">Search</button>
+      <button class="btn-secondary" (click)="clearSearch()" *ngIf="currentSearchTerm">Clear</button>
+    </div>
+    
+    <div class="actions-section">
+      <button class="btn-primary" (click)="onCreate()" *ngIf="enableCreate">
+        + Create New
+      </button>
+    </div>
+  </div>
+  
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th *ngFor="let col of columns"
+              (click)="col.sortable && onSort(col.key)"
+              [class.sortable]="col.sortable">
+            {{ col.label }}
+            <span class="sort-icon" *ngIf="col.sortable">{{ getSortIcon(col.key) }}</span>
+          </th>
+          <th *ngIf="enableEdit || enableDelete">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of data">
+          <td *ngFor="let col of columns">
+            <span [class]="col.type === 'status' ? 'status-' + item[col.key] : ''">
+              {{ item[col.key] }}
+            </span>
+          </td>
+          <td class="actions" *ngIf="enableEdit || enableDelete">
+            <button class="icon-btn" (click)="onEdit(item)" *ngIf="enableEdit">✏️</button>
+            <button class="icon-btn" (click)="onDelete(item)" *ngIf="enableDelete">🗑️</button>
+          </td>
+        </tr>
+        <tr *ngIf="data.length === 0">
+          <td [attr.colspan]="columns.length + (enableEdit || enableDelete ? 1 : 0)" class="no-data">
+            No data available
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="table-footer" *ngIf="totalItems > 0">
+    <div class="pagination-info">
+      Showing {{ ((currentPage - 1) * currentPageSize) + 1 }} to 
+      {{ Math.min(currentPage * currentPageSize, totalItems) }} of {{ totalItems }} entries
+    </div>
+    
+    <div class="pagination-controls">
+      <select [(ngModel)]="currentPageSize" (change)="onPageSizeChange(currentPageSize)" class="page-size-select">
+        <option *ngFor="let size of pageSizes" [value]="size">{{ size }} per page</option>
+      </select>
+      
+      <div class="pagination-buttons">
+        <button class="page-btn" (click)="onPageChange(currentPage - 1)" [disabled]="currentPage === 1">«</button>
+        
+        <button *ngFor="let page of getPages()" 
+                class="page-btn" 
+                [class.active]="page === currentPage"
+                [disabled]="page === -1"
+                (click)="page !== -1 && onPageChange(page)">
+          <span *ngIf="page !== -1">{{ page }}</span>
+          <span *ngIf="page === -1">...</span>
+        </button>
+        
+        <button class="page-btn" (click)="onPageChange(currentPage + 1)" [disabled]="currentPage === getTotalPages()">»</button>
+      </div>
+    </div>
+  </div>
+</div>

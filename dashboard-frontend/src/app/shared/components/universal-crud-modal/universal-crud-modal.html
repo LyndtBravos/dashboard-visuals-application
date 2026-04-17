@@ -1,0 +1,94 @@
+<!-- shared/components/universal-crud-modal/universal-crud-modal.component.html -->
+<div class="modal-overlay" *ngIf="isOpen" (click)="onClose()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ title }}</h2>
+      <button class="close-btn" (click)="onClose()">×</button>
+    </div>
+    
+    <form [formGroup]="formGroup" (ngSubmit)="onSubmit()" class="modal-form">
+      <div class="modal-body">
+        <div *ngFor="let field of fields" class="form-field" [hidden]="!isFieldVisible(field)">
+          <label [for]="field.key" class="field-label">
+            {{ field.label }}
+            <span class="required-star" *ngIf="field.required || field.conditionallyRequired">*</span>
+          </label>
+          
+          <input *ngIf="field.type === 'text' || field.type === 'email' || field.type === 'url'"
+                 [type]="field.type === 'url' ? 'url' : (field.type === 'email' ? 'email' : 'text')"
+                 [id]="field.key"
+                 [formControlName]="field.key"
+                 class="form-control"
+                 [class.error]="formGroup.get(field.key)?.invalid && formGroup.get(field.key)?.touched">
+                 
+          <input *ngIf="field.type === 'number'"
+                 type="number"
+                 [id]="field.key"
+                 [formControlName]="field.key"
+                 class="form-control"
+                 [attr.min]="field.min !== undefined ? field.min : null"
+                 [attr.max]="field.max !== undefined ? field.max : null"
+                 [class.error]="formGroup.get(field.key)?.invalid && formGroup.get(field.key)?.touched">
+                 
+          <textarea *ngIf="field.type === 'textarea'"
+                    [id]="field.key"
+                    [formControlName]="field.key"
+                    class="form-control"
+                    rows="4"
+                    [class.error]="formGroup.get(field.key)?.invalid && formGroup.get(field.key)?.touched"></textarea>
+                    
+          <div *ngIf="field.type === 'checkbox'" class="checkbox-wrapper">
+            <input type="checkbox"
+                   [id]="field.key"
+                   [formControlName]="field.key"
+                   class="checkbox-input">
+            <label [for]="field.key" class="checkbox-label">Enabled</label>
+          </div>
+          
+          <select *ngIf="field.type === 'select'"
+                  [id]="field.key"
+                  [formControlName]="field.key"
+                  class="form-control"
+                  [class.error]="formGroup.get(field.key)?.invalid && formGroup.get(field.key)?.touched">
+            <option [ngValue]="null" disabled>Select {{ field.label }}</option>
+            <option *ngFor="let option of field.options" [ngValue]="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          
+          <div *ngIf="field.type === 'multiselect'" class="multiselect-wrapper">
+            <div class="multiselect-header">
+              <span>Select days</span>
+            </div>
+            <div class="multiselect-options">
+              <label *ngFor="let option of field.options" class="multiselect-option">
+                <input type="checkbox"
+                       [checked]="isMultiSelectSelected(field.key, option.value)"
+                       (change)="toggleMultiSelectOption(field.key, option.value)">
+                {{ option.label }}
+              </label>
+            </div>
+          </div>
+          
+          <input *ngIf="field.type === 'time'"
+                 type="time"
+                 [id]="field.key"
+                 [formControlName]="field.key"
+                 class="form-control"
+                 [class.error]="formGroup.get(field.key)?.invalid && formGroup.get(field.key)?.touched">
+                 
+          <div class="error-message" *ngIf="formGroup.get(field.key)?.invalid && formGroup.get(field.key)?.touched">
+            {{ getFieldError(field.key) }}
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="onClose()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="isLoading || formGroup.invalid">
+          {{ isLoading ? 'Saving...' : submitButtonText }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

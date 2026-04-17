@@ -1,0 +1,121 @@
+<div class="site-monitors-container">
+  <div class="page-header">
+    <h1>Site Monitors</h1>
+    <p>Monitor website availability, content, and performance</p>
+  </div>
+  
+  <!-- Search and Create Bar -->
+  <div class="controls-bar">
+    <div class="search-section">
+      <input 
+        type="text"
+        [(ngModel)]="searchTerm"
+        (keyup.enter)="onSearch(searchTerm)"
+        placeholder="Search by name, URL, or service..."
+        class="search-input">
+      <button class="btn-secondary" (click)="onSearch(searchTerm)">Search</button>
+      <button class="btn-secondary" (click)="onSearch('')" *ngIf="searchTerm">Clear</button>
+    </div>
+
+      <div class="action-buttons">
+        <button class="btn-refresh" (click)="refreshAllMonitors()" [disabled]="isLoading">
+          🔄 Refresh All
+        </button>
+      </div>
+  
+    <button class="btn-primary" (click)="onCreate()">+ Create Site Monitor</button>
+  </div>
+  
+  <!-- Monitors Table -->
+  <div class="table-wrapper">
+    <table class="monitors-table">
+      <thead>
+        <tr>
+          <th (click)="onSort('name')">Name ↕️</th>
+          <th (click)="onSort('url')">URL ↕️</th>
+          <th (click)="onSort('serviceType')">Service ↕️</th>
+          <th (click)="onSort('severity')">Severity ↕️</th>
+          <th (click)="onSort('lastCheckStatus')">Status ↕️</th>
+          <th (click)="onSort('currentFailureCount')">Failures ↕️</th>
+          <th (click)="onSort('lastCheckTime')">Last Check ↕️</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let monitor of getPaginatedMonitors()">
+          <td class="monitor-name">{{ monitor.name }}</td>
+          <td class="monitor-url">{{ monitor.url | slice:0:50 }}{{ monitor.url.length > 50 ? '...' : '' }}</td>
+          <td>{{ monitor.serviceType }}</td>
+          <td>
+            <span class="severity-badge" [ngClass]="getSeverityClass(monitor.severity)">
+              {{ monitor.severity | uppercase }}
+            </span>
+          </td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusClass(monitor.lastCheckStatus || '')">
+              {{ monitor.lastCheckStatus || 'PENDING' | uppercase }}
+            </span>
+          </td>
+          <td class="failure-count" [class.high-failure]="monitor.currentFailureCount && monitor.currentFailureCount > 0">
+            {{ monitor.currentFailureCount || 0 }}
+          </td>
+          <td>{{ monitor.lastCheckTime ? (monitor.lastCheckTime | date:'MMM d, HH:mm:ss') : 'Never' }}</td>
+          <td class="actions-cell">
+            <button class="action-btn recheck" (click)="recheckMonitor(monitor)" title="Recheck now">
+              🔄
+            </button>
+            <button class="action-btn edit" (click)="onEdit(monitor)" title="Edit">
+              ✏️
+            </button>
+            <button class="action-btn delete" (click)="onDelete(monitor)" title="Delete">
+              🗑️
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="getPaginatedMonitors().length === 0">
+          <td colspan="8" class="no-data">
+            {{ searchTerm ? 'No matching site monitors found' : 'No site monitors configured. Click "Create Site Monitor" to add one.' }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Pagination -->
+  <div class="pagination-footer" *ngIf="filteredMonitors.length > 0">
+    <div class="pagination-info">
+      Showing {{ ((pagination.page - 1) * pagination.pageSize) + 1 }} to 
+      {{ Math.min(pagination.page * pagination.pageSize, filteredMonitors.length) }} of {{ filteredMonitors.length }} monitors
+    </div>
+    
+    <div class="pagination-controls">
+      <select [(ngModel)]="pagination.pageSize" (change)="onPageSizeChange(pagination.pageSize)">
+        <option *ngFor="let size of [10, 25, 50, 100]" [value]="size">{{ size }} per page</option>
+      </select>
+      
+      <div class="pagination-buttons">
+        <button (click)="onPageChange(pagination.page - 1)" [disabled]="pagination.page === 1">«</button>
+        <button *ngFor="let page of getPages()" 
+                [class.active]="page === pagination.page"
+                [disabled]="page === -1"
+                (click)="page !== -1 && onPageChange(page)">
+          {{ page === -1 ? '...' : page }}
+        </button>
+        <button (click)="onPageChange(pagination.page + 1)" [disabled]="pagination.page === getTotalPages()">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-universal-crud-modal
+  *ngIf="showModal"
+  [isOpen]="showModal"
+  [title]="modalTitle"
+  [mode]="modalMode"
+  [fields]="formFields"
+  [initialData]="selectedMonitor"
+  [isLoading]="modalLoading"
+  submitButtonText="Save Monitor"
+  (close)="onCloseModal()"
+  (submit)="onSubmit($event)">
+</app-universal-crud-modal>

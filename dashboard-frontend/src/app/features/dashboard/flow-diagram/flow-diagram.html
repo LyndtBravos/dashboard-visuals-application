@@ -1,0 +1,30 @@
+<div class="flow-container">
+  <!-- Rows -->
+  <div *ngFor="let row of rows; let rowIndex = index" class="flow-row" [class.ltr]="rowIndex % 2 === 0" [class.rtl]="rowIndex % 2 === 1">
+    <div *ngFor="let visual of row" #visualCard class="flow-card">
+      <app-visual-card 
+        [visual]="visual"
+        (edit)="onEdit($event)"
+        (delete)="onDelete($event.id)"
+        (recheck)="onRecheck($event)">
+      </app-visual-card>
+    </div>
+  </div>
+  
+  <svg class="arrow-overlay" *ngIf="!searchActive && arrows.length > 0" width="100%" height="100%">
+    <defs>
+      <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="currentColor" />
+      </marker>
+    </defs>
+    <g *ngFor="let arrow of arrows">
+      <path [attr.d]="arrow.path"
+            [attr.stroke]="arrow.color"
+            [attr.stroke-dasharray]="arrow.dashArray"
+            stroke-width="2"
+            fill="none"
+            marker-end="url(#arrowhead)"
+            style="color: currentColor" />
+    </g>
+  </svg>
+</div>
